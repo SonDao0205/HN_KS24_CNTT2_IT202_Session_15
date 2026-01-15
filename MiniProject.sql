@@ -92,22 +92,6 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Kiểm tra và demo:
--- Đăng ký 3-4 user thành công → SELECT Users và user_log.
-CALL sp_register_user('sondao','123456','sondao@gmail.com');
-CALL sp_register_user('hungpham','123456','hungpham@gmail.com');
-CALL sp_register_user('sondao1','123456','sondao1@gmail.com');
-CALL sp_register_user('sondao2','123456','sondao2@gmail.com');
--- Đăng ký trùng username/email → kiểm tra lỗi SIGNAL và bảng không thêm bản ghi.
-CALL sp_register_user('sondao','123456','sondao1@gmail.com');
-CALL sp_register_user('giahuy','123456','sondao@gmail.com');
--- kiểm tra kết quả
-SELECT *
-FROM Users;
-SELECT *
-FROM user_log;
-
-
 -- Bài 2: Đăng Bài Viết
 -- Tạo bảng post_log
 CREATE TABLE post_log(
@@ -147,24 +131,10 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Kiểm tra và demo:
--- Đăng 5-6 bài viết → SELECT Posts và log.
-CALL sp_create_post(1,'Bài viết 1');
-CALL sp_create_post(1,'Bài viết 3');
-CALL sp_create_post(2,'Bài viết 2');
-CALL sp_create_post(3,'Bài viết 4');
-CALL sp_create_post(4,'Bài viết 5');
--- Đăng bài với content rỗng → kiểm tra lỗi.
-CALL sp_create_post(3,'');
-
--- kiểm tra
-SELECT *
-FROM Posts;
-
-SELECT *
-FROM post_log;
 
 -- Bài 3: Thích Bài Viết
+
+-- Store Procedure để thêm like
 DELIMITER $$
 CREATE PROCEDURE sp_like_post(p_user_id INT, p_post_id INT)
 BEGIN 
@@ -175,6 +145,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- Store Procedure để xoá like
 DELIMITER $$
 CREATE PROCEDURE sp_unlike_post(p_user_id INT, p_post_id INT)
 BEGIN 
@@ -185,6 +156,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- Trigger AFTER INSERT trên Likes: tăng like_count +1.
 DELIMITER $$
 CREATE TRIGGER tg_after_like 
 AFTER INSERT
@@ -202,7 +174,7 @@ BEGIN
 END $$
 DELIMITER ;
 
-
+-- Trigger AFTER DELETE trên Likes: giảm like_count -1.
 DELIMITER $$
 CREATE TRIGGER tg_after_delete_like 
 AFTER DELETE
@@ -219,24 +191,6 @@ BEGIN
     (old.user_id, 'User Unlike Post');
 END $$
 DELIMITER ;
-
-
--- Kiểm tra và demo:
--- Like vài bài → kiểm tra like_count tăng.
-CALL sp_like_post(1,1);
-CALL sp_like_post(1,2);
-CALL sp_like_post(2,3);
-CALL sp_like_post(3,1);
--- Unlike → kiểm tra giảm.
-CALL sp_unlike_post(1,2);
--- Like trùng → PRIMARY KEY ngăn chặn.
-CALL sp_like_post(1,1);
--- kiểm tra
-SELECT * 
-FROM Posts;
-
-SELECT * 
-FROM Likes;
 
 -- Bài 4: Gửi Lời Mời Kết Bạn
 -- INSERT vào Friends với status = 'pending'.
@@ -256,7 +210,6 @@ END $$
 DELIMITER ;
 
 -- Trigger AFTER INSERT trên Friends ghi log.
-
 DELIMITER $$
 CREATE TRIGGER tg_after_send_request
 AFTER INSERT
@@ -275,20 +228,9 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Kiểm tra và demo:
-
--- Gửi vài lời mời hợp lệ → SELECT Friends.
-CALL sp_send_friend_request(1,2);
-CALL sp_send_friend_request(1,3);
--- Gửi không hợp lệ (tự gửi, trùng) → kiểm tra lỗi.
-CALL sp_send_friend_request(1,1);
-CALL sp_send_friend_request(1,2);
--- kiểm tra
-SELECT *
-FROM Friends;
 
 -- Bài 5: Chấp Nhận Lời Mời Kết Bạn
-
+-- Stored Procedure hoặc Trigger AFTER UPDATE trên Friends: nếu status thành 'accepted' thì INSERT bản ghi ngược.
 DELIMITER $$
 CREATE PROCEDURE sp_accept_friend_request(p_sender_id INT, p_receiver_id INT)
 BEGIN
@@ -314,6 +256,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- trigger để ghi log
 DELIMITER $$
 CREATE TRIGGER tg_update_accept_request
 AFTER UPDATE
@@ -330,16 +273,9 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Kiểm tra và demo:
--- Gửi lời mời → chấp nhận → kiểm tra cả hai chiều đều 'accepted'.
-CALL sp_accept_friend_request(1,2);
-CALL sp_accept_friend_request(1,3);
--- kiểm tra
-SELECT * FROM Friends;
-SELECT * FROM user_log;
-
 
 -- Bài 6: Quản Lý Mối Quan Hệ Bạn Bè
+-- Stored Procedure với START TRANSACTION … COMMIT/ROLLBACK khi cập nhật/xóa cả hai chiều.
 DELIMITER $$
 CREATE PROCEDURE sp_unfriend(p_user_id INT, p_friend_id INT)
 BEGIN
@@ -359,6 +295,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- trigger để ghi log
 DELIMITER $$
 CREATE TRIGGER tg_unfriend
 AFTER DELETE
@@ -370,17 +307,8 @@ BEGIN
 END $$
 DELIMITER ;
 
--- Kiểm tra và demo:
-
--- Cập nhật/xóa mối quan hệ → kiểm tra dữ liệu nhất quán.
-CALL sp_unfriend(1,2);
--- Gây lỗi
-CALL sp_unfriend(1,1);
-
-SELECT * FROM Friends;
-
 -- Bài 7: Quản Lý Xóa Bài Viết
-
+-- Stored Procedure sp_delete_post(p_post_id, p_user_id) kiểm tra quyền chủ + Transaction.
 DELIMITER $$
 CREATE PROCEDURE sp_delete_post(p_post_id INT, p_user_id INT) 
 BEGIN
@@ -403,6 +331,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- trigger để ghi log
 DELIMITER $$
 CREATE TRIGGER tg_after_delete_post
 AFTER DELETE
@@ -415,15 +344,8 @@ BEGIN
 END $$
 DELIMITER ;
 
--- kiểm tra
-CALL sp_delete_post(1,1);
-
--- thất bại
-CALL sp_delete_post(1,3);
-
-SELECT * FROM Posts;
-
 -- Bài 8: Quản Lý Xóa Tài Khoản Người Dùng
+-- Stored Procedure sp_delete_user(p_user_id) với Transaction, xóa theo thứ tự an toàn hoặc dùng ON DELETE CASCADE
 DELIMITER $$
 CREATE PROCEDURE sp_delete_user(p_user_id INT)
 BEGIN
@@ -452,6 +374,7 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- trigger để ghi log
 DELIMITER $$
 CREATE TRIGGER tg_after_delete_user
 AFTER DELETE
@@ -463,10 +386,3 @@ BEGIN
     (old.user_id,'User has been deleted!');
 END $$
 DELIMITER ;
--- kiểm tra
-CALL sp_delete_user(1);
-
--- thất bại
-CALL sp_delete_user(999);
-
-SELECT * FROM Posts WHERE user_id = 1;
