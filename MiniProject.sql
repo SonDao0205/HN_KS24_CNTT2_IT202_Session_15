@@ -264,12 +264,14 @@ ON Friends
 FOR EACH ROW
 BEGIN
 
-	INSERT INTO user_log(user_id,action) VALUE
-    (new.user_id,CONCAT('User receive friend request to : ',new.friend_id));
+    IF new.status = 'pending' THEN
+        INSERT INTO user_log(user_id, action) VALUES
+        (new.user_id, CONCAT('User sent friend request to: ', new.friend_id));
+        
+        INSERT INTO user_log(user_id, action) VALUES -- Lưu ý: cột đầu là log_id (auto), cột 2 là user_id
+        (new.friend_id, CONCAT('User received friend request from: ', new.user_id));
+    END IF;
     
-    INSERT INTO user_log(friend_id,action) VALUE
-    (new.friend_id,CONCAT('User send friend request to : ',new.user_id));
-
 END $$
 DELIMITER ;
 
@@ -286,18 +288,6 @@ SELECT *
 FROM Friends;
 
 -- Bài 5: Chấp Nhận Lời Mời Kết Bạn
--- Chức năng mô phỏng: Chấp nhận lời mời.
-
--- Yêu cầu chi tiết:
-
--- Cập nhật status từ 'pending' → 'accepted'.
--- Tự động tạo bản ghi ngược lại để mối quan hệ đối xứng.
--- Gợi ý thực hiện:
-
--- Stored Procedure hoặc Trigger AFTER UPDATE trên Friends: nếu status thành 'accepted' thì INSERT bản ghi ngược.
--- Kiểm tra và demo:
-
--- Gửi lời mời → chấp nhận → kiểm tra cả hai chiều đều 'accepted'.
 
 DELIMITER $$
 CREATE PROCEDURE sp_accept_friend_request(p_sender_id INT, p_receiver_id INT)
@@ -308,12 +298,18 @@ BEGIN
         SET MESSAGE_TEXT = 'Lỗi : id không hợp lệ!';
     END IF;
     
-	UPDATE Friends
-	SET status = 'accepted'
+	UPDATE Friends 
+	SET status = 'accepted' 
 	WHERE user_id = p_sender_id AND friend_id = p_receiver_id;
-
-	INSERT INTO Friends(user_id,friend_id) VALUE
-    (p_receiver_id,p_sender_id);
+    
+	IF NOT EXISTS (SELECT 1 FROM Friends WHERE user_id = p_receiver_id AND friend_id = p_sender_id) THEN
+		INSERT INTO Friends(user_id, friend_id, status) VALUES 
+		(p_receiver_id, p_sender_id, 'accepted');
+	ELSE
+		UPDATE Friends 
+		SET status = 'accepted' 
+		WHERE user_id = p_receiver_id AND friend_id = p_sender_id;
+	END IF;
 
 END $$
 DELIMITER ;
@@ -344,32 +340,20 @@ SELECT * FROM user_log;
 
 
 -- Bài 6: Quản Lý Mối Quan Hệ Bạn Bè
--- Chức năng mô phỏng: Cập nhật/xóa mối quan hệ.
-
--- Yêu cầu chi tiết:
-
--- Thay đổi trạng thái hoặc xóa mối quan hệ.
--- Sử dụng Transaction để đảm bảo nhất quán.
--- Gợi ý thực hiện:
-
--- Stored Procedure với START TRANSACTION … COMMIT/ROLLBACK khi cập nhật/xóa cả hai chiều.
--- Kiểm tra và demo:
-
--- Cập nhật/xóa mối quan hệ → kiểm tra dữ liệu nhất quán.
--- Gây lỗi trong transaction → kiểm tra ROLLBACK.
 DELIMITER $$
 CREATE PROCEDURE sp_unfriend(p_user_id INT, p_friend_id INT)
 BEGIN
 
 	START TRANSACTION;
-	IF (p_user_id = p_friend_id) THEN
-		ROLLBACK;
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Lỗi : id không hợp lệ!';
-    END IF;
-    
-    DELETE FROM Friends
-    WHERE user_id = p_user_id AND friend_id = p_friend_id;
+		IF (p_user_id = p_friend_id) THEN
+			ROLLBACK;
+			SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Lỗi : id không hợp lệ!';
+		END IF;
+		
+		DELETE FROM Friends
+		WHERE (user_id = p_user_id AND friend_id = p_friend_id)
+		OR (user_id = p_friend_id AND friend_id = p_user_id);
 	COMMIT;
     
 END $$
@@ -432,15 +416,6 @@ CALL sp_delete_post(1,3);
 
 
 -- Bài 8: Quản Lý Xóa Tài Khoản Người Dùng
--- Chức năng mô phỏng: Xóa tài khoản và toàn bộ dữ liệu.
-
--- Yêu cầu chi tiết:
-
--- Xóa Posts, Comments, Likes, Friends, Users.
--- Sử dụng Transaction.
--- Gợi ý thực hiện:
-
--- Stored Procedure sp_delete_user(p_user_id) với Transaction, xóa theo thứ tự an toàn hoặc dùng ON DELETE CASCADE.
 DELIMITER $$
 CREATE PROCEDURE sp_delete_user(p_user_id INT)
 BEGIN
