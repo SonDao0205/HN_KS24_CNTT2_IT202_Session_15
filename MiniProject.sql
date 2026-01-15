@@ -76,6 +76,7 @@ BEGIN
     (p_username,p_password,p_email);
     
 END $$
+DELIMITER ;
 
 -- Trigger AFTER INSERT trên Users ghi vào user_log.
 DELIMITER $$
@@ -89,6 +90,7 @@ BEGIN
     (new.user_id,'User Register!');
     
 END $$
+DELIMITER ;
 
 -- Kiểm tra và demo:
 -- Đăng ký 3-4 user thành công → SELECT Users và user_log.
@@ -129,6 +131,8 @@ BEGIN
     (p_user_id, p_content);
 	
 END $$
+DELIMITER ;
+
 -- Trigger AFTER INSERT trên Posts ghi log.
 DELIMITER $$
 CREATE TRIGGER tg_after_post
@@ -141,6 +145,7 @@ BEGIN
     (new.user_id,new.post_id,'Create Post');
     
 END $$
+DELIMITER ;
 
 -- Kiểm tra và demo:
 -- Đăng 5-6 bài viết → SELECT Posts và log.
@@ -168,6 +173,7 @@ BEGIN
     (p_user_id, p_post_id);
 
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE sp_unlike_post(p_user_id INT, p_post_id INT)
@@ -177,6 +183,7 @@ BEGIN
     WHERE user_id = p_user_id AND post_id = p_post_id;
 
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE TRIGGER tg_after_like 
@@ -193,6 +200,7 @@ BEGIN
 	INSERT INTO user_log(user_id, action) VALUE
     (new.user_id, 'User Like Post');
 END $$
+DELIMITER ;
 
 
 DELIMITER $$
@@ -210,6 +218,7 @@ BEGIN
 	INSERT INTO user_log(user_id, action) VALUE
     (old.user_id, 'User Unlike Post');
 END $$
+DELIMITER ;
 
 
 -- Kiểm tra và demo:
@@ -244,6 +253,7 @@ BEGIN
     (p_sender_id,p_receiver_id);
     
 END $$
+DELIMITER ;
 
 -- Trigger AFTER INSERT trên Friends ghi log.
 
@@ -261,6 +271,7 @@ BEGIN
     (new.friend_id,CONCAT('User send friend request to : ',new.user_id));
 
 END $$
+DELIMITER ;
 
 -- Kiểm tra và demo:
 
@@ -305,6 +316,7 @@ BEGIN
     (p_receiver_id,p_sender_id);
 
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE TRIGGER tg_update_accept_request
@@ -320,6 +332,7 @@ BEGIN
     (new.friend_id,CONCAT(new.user_id, 'had accepted friend request'));
 
 END $$
+DELIMITER ;
 
 -- Kiểm tra và demo:
 -- Gửi lời mời → chấp nhận → kiểm tra cả hai chiều đều 'accepted'.
@@ -360,6 +373,7 @@ BEGIN
 	COMMIT;
     
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE TRIGGER tg_unfriend
@@ -370,6 +384,7 @@ BEGIN
 	INSERT INTO user_log(user_id,action) VALUE
     (old.user_id,CONCAT('User have unfriend friend id : ',old.friend_id));
 END $$
+DELIMITER ;
 
 -- Kiểm tra và demo:
 
@@ -395,6 +410,7 @@ BEGIN
     WHERE user_id = p_user_id AND post_id = p_post_id;
 	COMMIT;
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE TRIGGER tg_after_delete_post
@@ -406,6 +422,7 @@ BEGIN
     INSERT INTO post_log(user_id,post_id,action) VALUE
     (old.user_id,old.post_id,'Post has been deleted!');
 END $$
+DELIMITER ;
 
 -- kiểm tra
 CALL sp_delete_post(1,1);
@@ -438,6 +455,7 @@ BEGIN
     WHERE user_id = p_user_id;
 	COMMIT;
 END $$
+DELIMITER ;
 
 DELIMITER $$
 CREATE TRIGGER tg_after_delete_user
@@ -449,7 +467,7 @@ BEGIN
     INSERT INTO user_log(user_id,action) VALUE
     (old.user_id,'User has been deleted!');
 END $$
-
+DELIMITER ;
 -- kiểm tra
 CALL sp_delete_user(1);
 
