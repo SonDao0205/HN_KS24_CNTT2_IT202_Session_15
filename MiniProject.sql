@@ -325,7 +325,7 @@ BEGIN
     (new.user_id,CONCAT('User accept friend request friend id : ',new.friend_id));
 
 	INSERT INTO user_log(user_id,action) VALUE
-    (new.friend_id,CONCAT(new.user_id, 'had accepted friend request'));
+    (new.friend_id,CONCAT(new.user_id, ' had accepted friend request'));
 
 END $$
 DELIMITER ;
@@ -374,9 +374,10 @@ DELIMITER ;
 
 -- Cập nhật/xóa mối quan hệ → kiểm tra dữ liệu nhất quán.
 CALL sp_unfriend(1,2);
--- Gây lỗi trong transaction → kiểm tra ROLLBACK.
+-- Gây lỗi
 CALL sp_unfriend(1,1);
 
+SELECT * FROM Friends;
 
 -- Bài 7: Quản Lý Xóa Bài Viết
 
@@ -389,6 +390,12 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Lỗi : id không hợp lệ!';
     END IF;
+
+	DELETE FROM Likes
+    WHERE post_id = p_post_id;
+    
+    DELETE FROM Comments
+    WHERE post_id = p_post_id;
 
     DELETE FROM Posts
     WHERE user_id = p_user_id AND post_id = p_post_id;
@@ -414,6 +421,7 @@ CALL sp_delete_post(1,1);
 -- thất bại
 CALL sp_delete_post(1,3);
 
+SELECT * FROM Posts;
 
 -- Bài 8: Quản Lý Xóa Tài Khoản Người Dùng
 DELIMITER $$
@@ -425,6 +433,18 @@ BEGIN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Lỗi : id không hợp lệ!';
     END IF;
+    
+    DELETE FROM Posts
+    WHERE user_id = p_user_id;
+    
+    DELETE FROM Likes
+    WHERE user_id = p_user_id;
+    
+    DELETE FROM Friends
+    WHERE user_id = p_user_id;
+    
+    DELETE FROM Comments
+    WHERE user_id = p_user_id;
     
 	DELETE FROM Users
     WHERE user_id = p_user_id;
@@ -449,4 +469,4 @@ CALL sp_delete_user(1);
 -- thất bại
 CALL sp_delete_user(999);
 
-
+SELECT * FROM Posts WHERE user_id = 1;
